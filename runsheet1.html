@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L & S Doyle Electrical — Weekly Run Sheet</title>
+<style>
+  :root {
+    --orange: #F28C1E;
+    --orange-light: #FEF3E2;
+    --orange-dark: #C96E0A;
+    --charcoal: #3D3D3D;
+    --bg: #ffffff;
+    --bg2: #f5f5f4;
+    --text: #1a1a1a;
+    --text2: #6b6b6b;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --row-hover: rgba(242,140,30,0.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg2); color: var(--text); }
+
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px 12px;
+    border-bottom: 2px solid var(--orange);
+    background: var(--bg);
+    flex-wrap: wrap; gap: 10px;
+  }
+  .logo-area { display: flex; align-items: center; gap: 12px; }
+  .logo-badge {
+    width: 42px; height: 42px; border-radius: 8px;
+    background: var(--orange); display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; color: #fff; letter-spacing: -0.5px; flex-shrink: 0;
+  }
+  .biz-name { font-size: 15px; font-weight: 600; color: var(--charcoal); }
+  .biz-sub { font-size: 12px; color: var(--text2); }
+  .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .week-picker { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); }
+  .week-picker input[type="date"] {
+    font-size: 13px; padding: 5px 10px; border-radius: 6px;
+    border: 1px solid var(--border2); background: var(--bg2); color: var(--text); height: 32px;
+  }
+
+  .tab-bar {
+    display: flex; background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    padding: 11px 22px; font-size: 13px; cursor: pointer;
+    border-bottom: 2px solid transparent; color: var(--text2);
+    background: none; border-top: none; border-left: none; border-right: none;
+    transition: color 0.15s; font-family: inherit;
+  }
+  .tab.active { color: var(--orange); border-bottom-color: var(--orange); font-weight: 600; }
+  .tab:hover:not(.active) { color: var(--text); }
+  .tab-lock { font-size: 11px; margin-left: 5px; opacity: 0.5; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* PIN OVERLAY */
+  .pin-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .pin-overlay.hidden { display: none; }
+  .pin-box {
+    background: var(--bg); border-radius: 14px; padding: 32px 28px;
+    width: 300px; text-align: center;
+    border: 1px solid var(--border);
+  }
+  .pin-box h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--charcoal); }
+  .pin-box p { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+  .pin-dots { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+  .pin-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--border2); background: transparent;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .pin-dot.filled { background: var(--orange); border-color: var(--orange); }
+  .pin-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .pin-key {
+    height: 48px; border-radius: 8px; border: 1px solid var(--border2);
+    font-size: 18px; font-weight: 500; cursor: pointer;
+    background: var(--bg); color: var(--text); font-family: inherit;
+    transition: background 0.1s;
+  }
+  .pin-key:hover { background: var(--bg2); }
+  .pin-key:active { background: var(--orange-light); }
+  .pin-key.del { font-size: 14px; color: var(--text2); }
+  .pin-error { font-size: 12px; color: #A32D2D; min-height: 18px; margin-top: -8px; }
+  .pin-cancel { font-size: 12px; color: var(--text2); background: none; border: none; cursor: pointer; margin-top: 8px; font-family: inherit; }
+  .pin-cancel:hover { color: var(--text); }
+
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 20px; background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; gap: 8px;
+  }
+  .toolbar-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  .btn {
+    font-size: 12px; padding: 6px 14px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--border2); background: var(--bg); color: var(--text);
+    transition: background 0.12s; font-family: inherit;
+  }
+  .btn:hover { background: var(--bg2); }
+  .btn-primary { background: var(--orange); color: #fff; border-color: var(--orange-dark); }
+  .btn-primary:hover { background: var(--orange-dark); }
+  .btn-danger { color: #A32D2D; border-color: rgba(163,45,45,0.3); }
+  .btn-danger:hover { background: #FCEBEB; }
+
+  .filter-select {
+    font-size: 12px; padding: 5px 10px; border-radius: 6px; height: 30px;
+    border: 1px solid var(--border); background: var(--bg2); color: var(--text); font-family: inherit;
+  }
+
+  .table-wrap { overflow-x: auto; background: var(--bg); }
+  table { width: 100%; border-collapse: collapse; min-width: 720px; }
+  thead tr { background: var(--bg2); }
+  th {
+    text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text2);
+    padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  td {
+    padding: 0; border-bottom: 1px solid var(--border);
+    font-size: 13px; color: var(--text); vertical-align: middle;
+  }
+  tr:hover td { background: var(--row-hover); }
+
+  .cell-input {
+    width: 100%; padding: 9px 12px; border: none; background: transparent;
+    font-size: 13px; color: var(--text); font-family: inherit;
+    outline: none; resize: none; min-height: 36px;
+  }
+  .cell-input:focus { background: var(--orange-light); }
+
+  .status-select {
+    padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    border: none; cursor: pointer; margin: 6px 8px; appearance: none;
+    -webkit-appearance: none; outline: none; min-width: 90px; text-align: center; font-family: inherit;
+  }
+  .status-select.scheduled { background: #EAF3DE; color: #3B6D11; }
+  .status-select.in-progress { background: #FEF3E2; color: #C96E0A; }
+  .status-select.done { background: #E1F5EE; color: #0F6E56; }
+  .status-select.cancelled { background: #FCEBEB; color: #A32D2D; }
+
+  .row-num { color: var(--text2); font-size: 11px; padding: 9px 8px 9px 16px; min-width: 32px; }
+  .del-btn {
+    padding: 4px 10px; color: var(--text2); cursor: pointer;
+    font-size: 18px; background: none; border: none; line-height: 1; opacity: 0.35;
+  }
+  .del-btn:hover { opacity: 1; color: #A32D2D; }
+
+  .day-group-header td {
+    padding: 6px 16px; font-size: 12px; font-weight: 600; color: #fff;
+    background: var(--charcoal); border-bottom: none;
+  }
+  .add-row-cell { padding: 6px 12px !important; border-bottom: 1px solid var(--border) !important; }
+
+  .summary-bar {
+    display: flex; gap: 20px; padding: 10px 20px; flex-wrap: wrap;
+    background: var(--bg); border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--text2);
+  }
+  .summary-bar span { font-weight: 600; color: var(--text); }
+
+  .lock-bar {
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 6px 20px; background: var(--orange-light);
+    border-bottom: 1px solid rgba(242,140,30,0.25);
+    font-size: 12px; color: var(--orange-dark); gap: 10px;
+  }
+
+  /* FIELD VIEW */
+  .field-view { padding: 20px; max-width: 700px; margin: 0 auto; }
+  .field-header {
+    text-align: center; padding: 18px; margin-bottom: 20px;
+    border: 2px solid var(--orange); border-radius: 10px;
+    background: var(--orange-light);
+  }
+  .field-header h2 { font-size: 18px; font-weight: 700; color: var(--charcoal); }
+  .field-header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+  .field-day { margin-bottom: 22px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .field-day-title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #fff; background: var(--charcoal); padding: 7px 14px;
+  }
+  .field-job {
+    padding: 12px 16px; background: var(--bg);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px;
+  }
+  .field-job + .field-job { border-top: 1px solid var(--border); }
+  .fj-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text2); margin-bottom: 1px; }
+  .fj-val { font-size: 13px; color: var(--text); font-weight: 500; }
+  .fj-full { grid-column: 1 / -1; }
+  .fj-status {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 3px 12px; border-radius: 20px; margin-top: 2px;
+  }
+  .fj-status.scheduled { background: #EAF3DE; color: #3B6D11; }
+  .fj-status.in-progress { background: #FEF3E2; color: #C96E0A; }
+  .fj-status.done { background: #E1F5EE; color: #0F6E56; }
+  .fj-status.cancelled { background: #FCEBEB; color: #A32D2D; }
+
+  .no-jobs { padding: 40px 20px; text-align: center; color: var(--text2); font-size: 14px; }
+
+  @media (max-width: 600px) {
+    .field-job { grid-template-columns: 1fr; }
+    .fj-full { grid-column: 1; }
+    .header { flex-direction: column; align-items: flex-start; }
+  }
+
+  @media print {
+    .tab-bar, .toolbar, .summary-bar, .del-btn, .btn,
+    .add-row-row, #editView, .week-picker, .lock-bar,
+    .pin-overlay, .header-right { display: none !important; }
+    #fieldView { display: block !important; }
+    .field-view { padding: 0; max-width: 100%; }
+    .field-header { background: #FEF3E2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .field-day-title { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .fj-status { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .field-day { break-inside: avoid; }
+    body { background: white; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PIN OVERLAY -->
+<div class="pin-overlay hidden" id="pinOverlay">
+  <div class="pin-box">
+    <h3>&#128274; Internal access</h3>
+    <p>Enter your PIN to unlock the edit view</p>
+    <div class="pin-dots">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+    <div class="pin-keypad">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key" onclick="pinKey('0')" style="grid-column:2">0</button>
+      <button class="pin-key del" onclick="pinDel()">&#9003;</button>
+    </div>
+    <div class="pin-error" id="pinError"></div>
+    <button class="pin-cancel" onclick="cancelPin()">Cancel</button>
+  </div>
+</div>
+
+<div class="header">
+  <div class="logo-area">
+    <div class="logo-badge">L&S</div>
+    <div>
+      <div class="biz-name">L &amp; S Doyle Electrical</div>
+      <div class="biz-sub">Weekly Run Sheet</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="week-picker">
+      <span>Week of</span>
+      <input type="date" id="weekStart">
+    </div>
+    <button class="btn btn-primary" onclick="printFieldView()">&#128438; Print / Share</button>
+  </div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab active" id="fieldTab" onclick="switchTab('field')">Run Sheet</button>
+  <button class="tab" id="editTab" onclick="requestEdit()">&#128274; Edit <span class="tab-lock" id="lockIcon">locked</span></button>
+</div>
+
+<div id="fieldView" class="view active">
+  <div class="field-view" id="fieldContent"></div>
+</div>
+
+<div id="editView" class="view">
+  <div class="lock-bar">
+    <span>&#128275; Edit mode unlocked</span>
+    <button class="btn btn-danger" style="padding:3px 10px;font-size:11px;" onclick="lockEdit()">Lock &amp; return to field view</button>
+  </div>
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <select class="filter-select" id="techFilter" onchange="renderTable()">
+        <option value="">All technicians</option>
+      </select>
+      <select class="filter-select" id="statusFilter" onchange="renderTable()">
+        <option value="">All statuses</option>
+        <option value="scheduled">Scheduled</option>
+        <option value="in-progress">In progress</option>
+        <option value="done">Done</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn" onclick="addRow()">+ Add job</button>
+      <button class="btn" onclick="exportJSON()">&#8595; Export</button>
+      <button class="btn" onclick="document.getElementById('importFile').click()">&#8593; Import</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table id="mainTable">
+      <thead>
+        <tr>
+          <th style="width:32px;">#</th>
+          <th style="width:88px;">Time</th>
+          <th style="width:110px;">Fergus #</th>
+          <th style="width:140px;">Customer</th>
+          <th>Address</th>
+          <th style="width:120px;">Technician</th>
+          <th>Description / Notes</th>
+          <th style="width:116px;">Status</th>
+          <th style="width:36px;"></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+  <div class="summary-bar" id="summaryBar"></div>
+</div>
+
+<script>
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+const CORRECT_PIN = '1234';
+
+let weekStart = getMonday(new Date());
+let jobs = [];
+let nextId = 1;
+let pinUnlocked = false;
+let pinBuffer = '';
+let pendingTab = null;
+
+function getMonday(d) {
+  const c = new Date(d);
+  const day = c.getDay(), diff = c.getDate() - day + (day === 0 ? -6 : 1);
+  c.setDate(diff); c.setHours(0,0,0,0);
+  return c;
+}
+function fmtDate(d) { return d.toISOString().split('T')[0]; }
+function fmtDisplay(d) {
+  return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+function dayDate(dayName) {
+  const idx = DAYS.indexOf(dayName);
+  const d = new Date(weekStart); d.setDate(d.getDate() + idx);
+  return fmtDisplay(d);
+}
+function techSet() { return [...new Set(jobs.map(j => j.tech).filter(Boolean))]; }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ---- PIN ---- */
+function requestEdit() {
+  if (pinUnlocked) { showEdit(); return; }
+  pinBuffer = '';
+  updateDots();
+  document.getElementById('pinError').textContent = '';
+  document.getElementById('pinOverlay').classList.remove('hidden');
+}
+
+function pinKey(k) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += k;
+  updateDots();
+  if (pinBuffer.length === 4) {
+    setTimeout(checkPin, 120);
+  }
+}
+
+function pinDel() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updateDots();
+  document.getElementById('pinError').textContent = '';
+}
+
+function updateDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('d' + i).classList.toggle('filled', i < pinBuffer.length);
+  }
+}
+
+function checkPin() {
+  if (pinBuffer === CORRECT_PIN) {
+    pinUnlocked = true;
+    document.getElementById('pinOverlay').classList.add('hidden');
+    document.getElementById('lockIcon').textContent = 'unlocked';
+    showEdit();
+  } else {
+    document.getElementById('pinError').textContent = 'Incorrect PIN — try again';
+    pinBuffer = '';
+    updateDots();
+  }
+}
+
+function cancelPin() {
+  document.getElementById('pinOverlay').classList.add('hidden');
+  pinBuffer = '';
+  updateDots();
+}
+
+function lockEdit() {
+  pinUnlocked = false;
+  document.getElementById('lockIcon').textContent = 'locked';
+  switchTab('field');
+}
+
+/* ---- TABS ---- */
+function showEdit() {
+  document.getElementById('fieldTab').classList.remove('active');
+  document.getElementById('editTab').classList.add('active');
+  document.getElementById('fieldView').classList.remove('active');
+  document.getElementById('editView').classList.add('active');
+  renderTable();
+}
+
+function switchTab(tab) {
+  document.getElementById('fieldTab').classList.toggle('active', tab === 'field');
+  document.getElementById('editTab').classList.toggle('active', tab === 'edit');
+  document.getElementById('fieldView').classList.toggle('active', tab === 'field');
+  document.getElementById('editView').classList.toggle('active', tab === 'edit');
+  if (tab === 'field') renderField();
+}
+
+/* ---- JOBS ---- */
+function updateTechFilter() {
+  const sel = document.getElementById('techFilter');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All technicians</option>';
+  techSet().forEach(t => {
+    const o = document.createElement('option');
+    o.value = t; o.textContent = t;
+    if (t === cur) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function filteredJobs() {
+  const tf = document.getElementById('techFilter').value;
+  const sf = document.getElementById('statusFilter').value;
+  return jobs.filter(j => (!tf || j.tech === tf) && (!sf || j.status === sf));
+}
+
+function addRow(day) {
+  day = day || 'Monday';
+  jobs.push({ id: nextId++, day, time: '', fergus: '', customer: '', address: '', tech: '', desc: '', status: 'scheduled' });
+  renderTable(); updateTechFilter();
+}
+
+function deleteRow(id) {
+  jobs = jobs.filter(j => j.id !== id);
+  renderTable(); updateTechFilter();
+}
+
+function updateJob(id, field, val) {
+  const j = jobs.find(x => x.id === id);
+  if (j) j[field] = val;
+  if (field === 'tech') updateTechFilter();
+  if (field === 'status') {
+    const sel = document.querySelector('select[data-id="' + id + '"]');
+    if (sel) sel.className = 'status-select ' + val;
+  }
+  renderSummary();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  const fj = filteredJobs();
+  let rowNum = 0;
+  DAYS.forEach(day => {
+    const dayJobs = fj.filter(j => j.day === day);
+    const hdr = document.createElement('tr');
+    hdr.className = 'day-group-header';
+    hdr.innerHTML = '<td colspan="9">' + day + ' &mdash; ' + dayDate(day) + '</td>';
+    tbody.appendChild(hdr);
+    dayJobs.forEach(j => {
+      rowNum++;
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="row-num">' + rowNum + '</td>' +
+        '<td><input class="cell-input" style="width:80px" value="' + esc(j.time) + '" placeholder="7:30" onchange="updateJob(' + j.id + ',\'time\',this.value)"></td>' +
+        '<td><input class="cell-input" style="width:100px" value="' + esc(j.fergus) + '" placeholder="FG-XXXX" onchange="updateJob(' + j.id + ',\'fergus\',this.value)"></td>' +
+        '<td><input class="cell-input" value="' + esc(j.customer) + '" placeholder="Customer name" onchange="updateJob(' + j.id + ',\'customer\',this.value)"></td>' +
+        '<td><input class="cell-input" value="' + esc(j.address) + '" placeholder="Job address" onchange="updateJob(' + j.id + ',\'address\',this.value)"></td>' +
+        '<td><input class="cell-input" value="' + esc(j.tech) + '" placeholder="Technician" onchange="updateJob(' + j.id + ',\'tech\',this.value)"></td>' +
+        '<td><input class="cell-input" value="' + esc(j.desc) + '" placeholder="Description / notes" onchange="updateJob(' + j.id + ',\'desc\',this.value)"></td>' +
+        '<td><select class="status-select ' + j.status + '" data-id="' + j.id + '" onchange="updateJob(' + j.id + ',\'status\',this.value)">' +
+          '<option value="scheduled"' + (j.status==='scheduled'?' selected':'') + '>Scheduled</option>' +
+          '<option value="in-progress"' + (j.status==='in-progress'?' selected':'') + '>In progress</option>' +
+          '<option value="done"' + (j.status==='done'?' selected':'') + '>Done</option>' +
+          '<option value="cancelled"' + (j.status==='cancelled'?' selected':'') + '>Cancelled</option>' +
+        '</select></td>' +
+        '<td><button class="del-btn" onclick="deleteRow(' + j.id + ')">&times;</button></td>';
+      tbody.appendChild(tr);
+    });
+    const addTr = document.createElement('tr');
+    addTr.className = 'add-row-row';
+    addTr.innerHTML = '<td colspan="9" class="add-row-cell"><button class="btn" style="font-size:11px;padding:3px 10px;" onclick="addRow(\'' + day + '\')">+ Add to ' + day + '</button></td>';
+    tbody.appendChild(addTr);
+  });
+  if (!fj.length && !jobs.length) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="9" class="no-jobs">No jobs yet &mdash; click &ldquo;+ Add job&rdquo; to get started</td>';
+    tbody.appendChild(tr);
+  }
+  renderSummary();
+}
+
+function renderSummary() {
+  const bar = document.getElementById('summaryBar');
+  const total = jobs.length, done = jobs.filter(j => j.status === 'done').length,
+    inprog = jobs.filter(j => j.status === 'in-progress').length;
+  const techs = [...new Set(jobs.map(j => j.tech).filter(Boolean))];
+  bar.innerHTML =
+    'Total jobs: <span>' + total + '</span> &nbsp;&bull;&nbsp; ' +
+    'Done: <span>' + done + '</span> &nbsp;&bull;&nbsp; ' +
+    'In progress: <span>' + inprog + '</span> &nbsp;&bull;&nbsp; ' +
+    'Technicians: <span>' + (techs.join(', ') || '&mdash;') + '</span>';
+}
+
+function renderField() {
+  const el = document.getElementById('fieldContent');
+  const d = new Date(weekStart), end = new Date(weekStart);
+  end.setDate(end.getDate() + 4);
+  let html = '<div class="field-header"><h2>L &amp; S Doyle Electrical &mdash; Run Sheet</h2><p>Week of ' + fmtDisplay(d) + ' to ' + fmtDisplay(end) + '</p></div>';
+  let hasAny = false;
+  DAYS.forEach(day => {
+    const dayJobs = jobs.filter(j => j.day === day && j.status !== 'cancelled');
+    if (!dayJobs.length) return;
+    hasAny = true;
+    html += '<div class="field-day"><div class="field-day-title">' + day + ' &mdash; ' + dayDate(day) + '</div>';
+    dayJobs.forEach(j => {
+      html +=
+        '<div class="field-job">' +
+        '<div><div class="fj-label">Time</div><div class="fj-val">' + esc(j.time || 'TBC') + '</div></div>' +
+        '<div><div class="fj-label">Fergus #</div><div class="fj-val">' + esc(j.fergus || '&mdash;') + '</div></div>' +
+        '<div><div class="fj-label">Customer</div><div class="fj-val">' + esc(j.customer || '&mdash;') + '</div></div>' +
+        '<div><div class="fj-label">Technician</div><div class="fj-val">' + esc(j.tech || '&mdash;') + '</div></div>' +
+        '<div class="fj-full"><div class="fj-label">Address</div><div class="fj-val">' + esc(j.address || '&mdash;') + '</div></div>' +
+        '<div class="fj-full"><div class="fj-label">Description / Notes</div><div class="fj-val">' + esc(j.desc || '&mdash;') + '</div></div>' +
+        '<div class="fj-full"><div class="fj-label">Status</div><div class="fj-val"><span class="fj-status ' + j.status + '">' + j.status + '</span></div></div>' +
+        '</div>';
+    });
+    html += '</div>';
+  });
+  if (!hasAny) html += '<div class="no-jobs">No jobs scheduled this week.</div>';
+  el.innerHTML = html;
+}
+
+function printFieldView() {
+  renderField();
+  switchTab('field');
+  setTimeout(() => window.print(), 200);
+}
+
+function exportJSON() {
+  const data = { weekStart: fmtDate(weekStart), jobs };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'runsheet-' + fmtDate(weekStart) + '.json';
+  a.click();
+}
+
+function importJSON(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = function(ev) {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (d.jobs) { jobs = d.jobs; nextId = Math.max(...d.jobs.map(j => j.id)) + 1; }
+      if (d.weekStart) { weekStart = new Date(d.weekStart + 'T00:00:00'); }
+      document.getElementById('weekStart').value = fmtDate(weekStart);
+      renderTable(); updateTechFilter();
+    } catch(err) { alert('Could not load file — make sure it is a valid run sheet export.'); }
+  };
+  r.readAsText(file);
+  e.target.value = '';
+}
+
+document.getElementById('weekStart').value = fmtDate(weekStart);
+document.getElementById('weekStart').addEventListener('change', function(e) {
+  weekStart = new Date(e.target.value + 'T00:00:00');
+  if (document.getElementById('editView').classList.contains('active')) renderTable();
+  else renderField();
+});
+
+renderField();
+updateTechFilter();
+</script>
+</body>
+</html>
