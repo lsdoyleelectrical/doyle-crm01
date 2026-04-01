@@ -60,7 +60,6 @@
   .view { display: none; }
   .view.active { display: block; }
 
-  /* PIN OVERLAY */
   .pin-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.45);
     display: flex; align-items: center; justify-content: center;
@@ -69,8 +68,7 @@
   .pin-overlay.hidden { display: none; }
   .pin-box {
     background: var(--bg); border-radius: 14px; padding: 32px 28px;
-    width: 300px; text-align: center;
-    border: 1px solid var(--border);
+    width: 300px; text-align: center; border: 1px solid var(--border);
   }
   .pin-box h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--charcoal); }
   .pin-box p { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
@@ -140,6 +138,13 @@
   }
   .cell-input:focus { background: var(--orange-light); }
 
+  .tech-select {
+    width: 100%; padding: 9px 12px; border: none; background: transparent;
+    font-size: 13px; color: var(--text); font-family: inherit;
+    outline: none; cursor: pointer; appearance: none; -webkit-appearance: none;
+  }
+  .tech-select:focus { background: var(--orange-light); }
+
   .status-select {
     padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
     border: none; cursor: pointer; margin: 6px 8px; appearance: none;
@@ -177,7 +182,6 @@
     font-size: 12px; color: var(--orange-dark); gap: 10px;
   }
 
-  /* FIELD VIEW */
   .field-view { padding: 20px; max-width: 700px; margin: 0 auto; }
   .field-header {
     text-align: center; padding: 18px; margin-bottom: 20px;
@@ -211,6 +215,13 @@
 
   .no-jobs { padding: 40px 20px; text-align: center; color: var(--text2); font-size: 14px; }
 
+  /* tech badge colours in field view */
+  .tech-tag {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 2px 10px; border-radius: 20px;
+    background: var(--bg2); color: var(--charcoal); border: 1px solid var(--border2);
+  }
+
   @media (max-width: 600px) {
     .field-job { grid-template-columns: 1fr; }
     .fj-full { grid-column: 1; }
@@ -233,7 +244,6 @@
 </head>
 <body>
 
-<!-- PIN OVERLAY -->
 <div class="pin-overlay hidden" id="pinOverlay">
   <div class="pin-box">
     <h3>&#128274; Internal access</h3>
@@ -296,7 +306,7 @@
   <div class="toolbar">
     <div class="toolbar-left">
       <select class="filter-select" id="techFilter" onchange="renderTable()">
-        <option value="">All technicians</option>
+        <option value="">All staff</option>
       </select>
       <select class="filter-select" id="statusFilter" onchange="renderTable()">
         <option value="">All statuses</option>
@@ -322,7 +332,7 @@
           <th style="width:110px;">Fergus #</th>
           <th style="width:140px;">Customer</th>
           <th>Address</th>
-          <th style="width:120px;">Technician</th>
+          <th style="width:150px;">Technician</th>
           <th>Description / Notes</th>
           <th style="width:116px;">Status</th>
           <th style="width:36px;"></th>
@@ -337,13 +347,24 @@
 <script>
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
 const CORRECT_PIN = '1234';
+const STAFF = [
+  'Lachie',
+  'Dan',
+  'Tyler',
+  'Kane',
+  'Jonny',
+  'Liam',
+  'Dave',
+  'Dan (Crewselect)',
+  'Matt (Electrogroup)',
+  'Mitch (Electrogroup)'
+];
 
 let weekStart = getMonday(new Date());
 let jobs = [];
 let nextId = 1;
 let pinUnlocked = false;
 let pinBuffer = '';
-let pendingTab = null;
 
 function getMonday(d) {
   const c = new Date(d);
@@ -360,8 +381,33 @@ function dayDate(dayName) {
   const d = new Date(weekStart); d.setDate(d.getDate() + idx);
   return fmtDisplay(d);
 }
-function techSet() { return [...new Set(jobs.map(j => j.tech).filter(Boolean))]; }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function staffOptions(selected) {
+  let html = '<option value="">— Assign —</option>';
+  STAFF.forEach(name => {
+    html += '<option value="' + esc(name) + '"' + (name === selected ? ' selected' : '') + '>' + esc(name) + '</option>';
+  });
+  return html;
+}
+
+function updateTechFilter() {
+  const sel = document.getElementById('techFilter');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All staff</option>';
+  STAFF.forEach(name => {
+    const o = document.createElement('option');
+    o.value = name; o.textContent = name;
+    if (name === cur) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function filteredJobs() {
+  const tf = document.getElementById('techFilter').value;
+  const sf = document.getElementById('statusFilter').value;
+  return jobs.filter(j => (!tf || j.tech === tf) && (!sf || j.status === sf));
+}
 
 /* ---- PIN ---- */
 function requestEdit() {
@@ -371,28 +417,22 @@ function requestEdit() {
   document.getElementById('pinError').textContent = '';
   document.getElementById('pinOverlay').classList.remove('hidden');
 }
-
 function pinKey(k) {
   if (pinBuffer.length >= 4) return;
   pinBuffer += k;
   updateDots();
-  if (pinBuffer.length === 4) {
-    setTimeout(checkPin, 120);
-  }
+  if (pinBuffer.length === 4) setTimeout(checkPin, 120);
 }
-
 function pinDel() {
   pinBuffer = pinBuffer.slice(0, -1);
   updateDots();
   document.getElementById('pinError').textContent = '';
 }
-
 function updateDots() {
   for (let i = 0; i < 4; i++) {
     document.getElementById('d' + i).classList.toggle('filled', i < pinBuffer.length);
   }
 }
-
 function checkPin() {
   if (pinBuffer === CORRECT_PIN) {
     pinUnlocked = true;
@@ -405,13 +445,11 @@ function checkPin() {
     updateDots();
   }
 }
-
 function cancelPin() {
   document.getElementById('pinOverlay').classList.add('hidden');
   pinBuffer = '';
   updateDots();
 }
-
 function lockEdit() {
   pinUnlocked = false;
   document.getElementById('lockIcon').textContent = 'locked';
@@ -426,7 +464,6 @@ function showEdit() {
   document.getElementById('editView').classList.add('active');
   renderTable();
 }
-
 function switchTab(tab) {
   document.getElementById('fieldTab').classList.toggle('active', tab === 'field');
   document.getElementById('editTab').classList.toggle('active', tab === 'edit');
@@ -436,39 +473,18 @@ function switchTab(tab) {
 }
 
 /* ---- JOBS ---- */
-function updateTechFilter() {
-  const sel = document.getElementById('techFilter');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">All technicians</option>';
-  techSet().forEach(t => {
-    const o = document.createElement('option');
-    o.value = t; o.textContent = t;
-    if (t === cur) o.selected = true;
-    sel.appendChild(o);
-  });
-}
-
-function filteredJobs() {
-  const tf = document.getElementById('techFilter').value;
-  const sf = document.getElementById('statusFilter').value;
-  return jobs.filter(j => (!tf || j.tech === tf) && (!sf || j.status === sf));
-}
-
 function addRow(day) {
   day = day || 'Monday';
   jobs.push({ id: nextId++, day, time: '', fergus: '', customer: '', address: '', tech: '', desc: '', status: 'scheduled' });
-  renderTable(); updateTechFilter();
+  renderTable();
 }
-
 function deleteRow(id) {
   jobs = jobs.filter(j => j.id !== id);
-  renderTable(); updateTechFilter();
+  renderTable();
 }
-
 function updateJob(id, field, val) {
   const j = jobs.find(x => x.id === id);
   if (j) j[field] = val;
-  if (field === 'tech') updateTechFilter();
   if (field === 'status') {
     const sel = document.querySelector('select[data-id="' + id + '"]');
     if (sel) sel.className = 'status-select ' + val;
@@ -496,7 +512,7 @@ function renderTable() {
         '<td><input class="cell-input" style="width:100px" value="' + esc(j.fergus) + '" placeholder="FG-XXXX" onchange="updateJob(' + j.id + ',\'fergus\',this.value)"></td>' +
         '<td><input class="cell-input" value="' + esc(j.customer) + '" placeholder="Customer name" onchange="updateJob(' + j.id + ',\'customer\',this.value)"></td>' +
         '<td><input class="cell-input" value="' + esc(j.address) + '" placeholder="Job address" onchange="updateJob(' + j.id + ',\'address\',this.value)"></td>' +
-        '<td><input class="cell-input" value="' + esc(j.tech) + '" placeholder="Technician" onchange="updateJob(' + j.id + ',\'tech\',this.value)"></td>' +
+        '<td><select class="tech-select" onchange="updateJob(' + j.id + ',\'tech\',this.value)">' + staffOptions(j.tech) + '</select></td>' +
         '<td><input class="cell-input" value="' + esc(j.desc) + '" placeholder="Description / notes" onchange="updateJob(' + j.id + ',\'desc\',this.value)"></td>' +
         '<td><select class="status-select ' + j.status + '" data-id="' + j.id + '" onchange="updateJob(' + j.id + ',\'status\',this.value)">' +
           '<option value="scheduled"' + (j.status==='scheduled'?' selected':'') + '>Scheduled</option>' +
@@ -524,12 +540,12 @@ function renderSummary() {
   const bar = document.getElementById('summaryBar');
   const total = jobs.length, done = jobs.filter(j => j.status === 'done').length,
     inprog = jobs.filter(j => j.status === 'in-progress').length;
-  const techs = [...new Set(jobs.map(j => j.tech).filter(Boolean))];
+  const assigned = [...new Set(jobs.map(j => j.tech).filter(Boolean))];
   bar.innerHTML =
     'Total jobs: <span>' + total + '</span> &nbsp;&bull;&nbsp; ' +
     'Done: <span>' + done + '</span> &nbsp;&bull;&nbsp; ' +
     'In progress: <span>' + inprog + '</span> &nbsp;&bull;&nbsp; ' +
-    'Technicians: <span>' + (techs.join(', ') || '&mdash;') + '</span>';
+    'Assigned: <span>' + (assigned.join(', ') || '&mdash;') + '</span>';
 }
 
 function renderField() {
@@ -549,7 +565,7 @@ function renderField() {
         '<div><div class="fj-label">Time</div><div class="fj-val">' + esc(j.time || 'TBC') + '</div></div>' +
         '<div><div class="fj-label">Fergus #</div><div class="fj-val">' + esc(j.fergus || '&mdash;') + '</div></div>' +
         '<div><div class="fj-label">Customer</div><div class="fj-val">' + esc(j.customer || '&mdash;') + '</div></div>' +
-        '<div><div class="fj-label">Technician</div><div class="fj-val">' + esc(j.tech || '&mdash;') + '</div></div>' +
+        '<div><div class="fj-label">Technician</div><div class="fj-val"><span class="tech-tag">' + esc(j.tech || 'Unassigned') + '</span></div></div>' +
         '<div class="fj-full"><div class="fj-label">Address</div><div class="fj-val">' + esc(j.address || '&mdash;') + '</div></div>' +
         '<div class="fj-full"><div class="fj-label">Description / Notes</div><div class="fj-val">' + esc(j.desc || '&mdash;') + '</div></div>' +
         '<div class="fj-full"><div class="fj-label">Status</div><div class="fj-val"><span class="fj-status ' + j.status + '">' + j.status + '</span></div></div>' +
@@ -585,7 +601,7 @@ function importJSON(e) {
       if (d.jobs) { jobs = d.jobs; nextId = Math.max(...d.jobs.map(j => j.id)) + 1; }
       if (d.weekStart) { weekStart = new Date(d.weekStart + 'T00:00:00'); }
       document.getElementById('weekStart').value = fmtDate(weekStart);
-      renderTable(); updateTechFilter();
+      renderTable();
     } catch(err) { alert('Could not load file — make sure it is a valid run sheet export.'); }
   };
   r.readAsText(file);
@@ -599,8 +615,8 @@ document.getElementById('weekStart').addEventListener('change', function(e) {
   else renderField();
 });
 
-renderField();
 updateTechFilter();
+renderField();
 </script>
 </body>
 </html>
